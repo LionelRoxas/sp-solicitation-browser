@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape.ts",
+    "embed": "tsx scripts/embed.ts",
     "test": "vitest run"
   },
   "dependencies": {

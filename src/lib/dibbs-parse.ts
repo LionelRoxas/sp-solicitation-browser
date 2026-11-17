@@ -38,15 +38,16 @@ export function parseRfqGrid(html: string): Rfq[] {
     // PR cell: "7018634838<br>QTY: 24000"
     const prText = clean(tds[6].structuredText.replace(/\n/g, " "));
     const prm = prText.match(/^(\S+)\s*QTY:\s*([\d,]+)/i);
+    const prNumber = prm ? prm[1] : prText.split(" ")[0] || null;
     out.push({
-      id: `${sol}|${nsn}`,
+      id: `${sol}|${nsn}|${prNumber ?? ""}`,
       sol_number: sol,
       nsn,
       fsc: /^\d{4}-/.test(nsn) ? nsn.slice(0, 4) : null,
       nomenclature: clean(tds[2].text) || null,
       tech_docs: clean(tds[3].text) || null,
       status: status || null,
-      pr_number: prm ? prm[1] : prText.split(" ")[0] || null,
+      pr_number: prNumber,
       qty: prm ? parseInt(prm[2].replace(/,/g, ""), 10) : null,
       issued: isoDate(tds[7].text),
       return_by: isoDate(tds[8].text),

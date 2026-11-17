@@ -14,7 +14,7 @@ describe("parseRfqGrid", () => {
 
   it("parses the first row", () => {
     expect(rows[0]).toMatchObject({
-      id: "SPE1C1-27-Q-0127|8455-01-145-6344",
+      id: "SPE1C1-27-Q-0127|8455-01-145-6344|7018634838",
       sol_number: "SPE1C1-27-Q-0127",
       nsn: "8455-01-145-6344",
       fsc: "8455",
