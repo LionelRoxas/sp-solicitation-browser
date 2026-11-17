@@ -1,26 +1,154 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --ink: #12171a;
+  --bg: #f6f6f6;
+  --surface: #ffffff;
+  --muted: #f4f4f4;
+  --blue: #1957ea;
+  --hairline: rgba(18, 23, 26, 0.08);
+  --ink-60: rgba(18, 23, 26, 0.6);
+  --clip: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ink: #f6f6f6;
+    --bg: #0d1114;
+    --surface: #12171a;
+    --muted: #181e22;
+    --hairline: rgba(246, 246, 246, 0.08);
+    --ink-60: rgba(246, 246, 246, 0.6);
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+html, body { height: 100%; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+a { color: inherit; }
+
+.mono { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+}
+.heading { font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  clip-path: var(--clip);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--hairline);
+  background: var(--muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.chip-blue { background: var(--blue); border-color: var(--blue); color: #fff; }
+.chip-quiet { background: transparent; color: var(--ink-60); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 2px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--muted); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn-primary:hover { background: #1449c7; }
+
+.input {
+  height: 40px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 2px;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+}
+.input:focus-visible { outline: 2px solid var(--blue); outline-offset: -1px; }
+
+.link-action { font-size: 13px; color: var(--blue); text-decoration: none; }
+.link-action:hover { text-decoration: underline; }
+
+/* Browse table */
+.rfq-table { width: 100%; border-collapse: collapse; }
+.rfq-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--hairline);
+  font-weight: 400;
+}
+.rfq-table td {
+  height: 40px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: middle;
+}
+.rfq-table tbody tr:hover { background: var(--muted); }
+.rfq-table .num { text-align: right; }
+
+@media (max-width: 699px) {
+  .rfq-table thead { display: none; }
+  .rfq-table, .rfq-table tbody, .rfq-table tr, .rfq-table td { display: block; width: 100%; }
+  .rfq-table tr {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    clip-path: var(--clip);
+    margin-bottom: 8px;
+    padding: 8px 0;
+  }
+  .rfq-table td { height: auto; border: 0; padding: 3px 12px; display: flex; justify-content: space-between; gap: 12px; }
+  .rfq-table td::before {
+    content: attr(data-label);
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+  }
+  .rfq-table .num { text-align: left; }
+}
+
+@keyframes pulse-dot { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.loading-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
 }
