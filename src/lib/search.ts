@@ -76,8 +76,10 @@ export async function hybridSearch(
   const db = getDb();
   const limit = opts.limit ?? 50;
   const today = opts.today ?? new Date().toISOString().slice(0, 10);
-  const w = where({ ...intent, today: intent.dueWithinDays != null ? today : opts.today });
-  const nsnSet = new Set((intent.nsn ?? []).map(digits).filter(Boolean));
+  // NSNs are not a WHERE filter for the search legs: a named NSN is pinned to the top,
+  // and keyword/meaning search still runs, so "this NSN or anything similar" works.
+  const w = where({ ...intent, nsn: [], today: intent.dueWithinDays != null ? today : opts.today });
+  const nsnList = [...new Set((intent.nsn ?? []).map(digits).filter(Boolean))];
   const fscSet = new Set(intent.fsc ?? []);
   const q = ftsQuery(intent.keywords ?? []);
   const semantic = (intent.semantic ?? "").trim();
@@ -89,12 +91,26 @@ export async function hybridSearch(
       if (k && nom.includes(k.toLowerCase())) reasons.push(`keyword: ${k.toLowerCase()}`);
     reasons.push(...extra);
     if (r.fsc && fscSet.has(r.fsc)) reasons.push(`NSN class ${r.fsc}`);
-    if (nsnSet.has(digits(r.nsn))) reasons.push("exact NSN");
+    const d = digits(r.nsn);
+    if (nsnList.includes(d)) reasons.push("exact NSN");
+    else if (nsnList.some((n) => d.startsWith(n))) reasons.push("NSN prefix");
     return { ...r, score, reasons };
   };
 
+  // Rows whose NSN equals or starts with a named NSN (partial NSNs work too).
+  const pinned = nsnList.length
+    ? (db
+        .prepare(
+          `SELECT r.* FROM rfqs r WHERE (${nsnList.map(() => "REPLACE(r.nsn,'-','') LIKE ?").join(" OR ")})
+           ORDER BY r.return_by LIMIT ?`,
+        )
+        .all(...nsnList.map((n) => n + "%"), limit) as Rfq[])
+    : [];
+  const pinnedHits = pinned.map((r) => decorate(r, [], 1));
+
   if (!q && !semantic) {
-    if (!nsnSet.size && !fscSet.size) return [];
+    if (pinnedHits.length) return pinnedHits;
+    if (!fscSet.size) return [];
     const rows = db
       .prepare(`SELECT r.* FROM rfqs r WHERE 1=1${w.sql} ORDER BY r.return_by LIMIT ?`)
       .all(...w.params, limit) as Rfq[];
@@ -145,13 +161,12 @@ export async function hybridSearch(
     }
   }
 
-  const hits = [...byId.values()].map((r) => {
-    let s = score.get(r.id) ?? 0;
-    if (nsnSet.has(digits(r.nsn))) s += 0.05;
-    return decorate(r, (semHit.get(r.id) ?? 0) >= 0.35 ? ["similar meaning"] : [], s);
-  });
+  const pinnedIds = new Set(pinned.map((r) => r.id));
+  const hits = [...byId.values()]
+    .filter((r) => !pinnedIds.has(r.id))
+    .map((r) => decorate(r, (semHit.get(r.id) ?? 0) >= 0.35 ? ["similar meaning"] : [], score.get(r.id) ?? 0));
   hits.sort((a, b) => b.score - a.score);
-  return hits.slice(0, limit);
+  return [...pinnedHits, ...hits].slice(0, limit);
 }
 
 const SORTS = { return_by: "r.return_by", issued: "r.issued", qty: "r.qty" } as const;
@@ -174,8 +189,9 @@ export function listRfqs(o: {
   const params: (string | number)[] = [];
   if (q) {
     if (digits(q).length >= 9) {
-      cond = "REPLACE(r.nsn,'-','') = ?";
-      params.push(digits(q));
+      // NSN or partial NSN, with or without dashes: prefix match.
+      cond = "REPLACE(r.nsn,'-','') LIKE ?";
+      params.push(digits(q) + "%");
     } else {
       const m = ftsQuery(words(q));
       if (!m) return { rows: [], total: 0 };

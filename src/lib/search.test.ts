@@ -69,4 +69,20 @@ describe("search", () => {
     const h = await hybridSearch({ ...base, keywords: ["screw"], semantic: "fasteners" });
     expect(h.map((x) => x.nsn)).toEqual(["5305-01-222-2222"]);
   });
+  it("browse: a partial NSN (9+ digits) matches by prefix", () => {
+    expect(listRfqs({ q: "3110-01-111" }).rows.map((r) => r.nsn)).toEqual(["3110-01-111-1111"]);
+    expect(listRfqs({ q: "311001111" }).total).toBe(1);
+    expect(listRfqs({ q: "3110-01-111-1111" }).total).toBe(1);
+  });
+  it("chat: NSN pins the exact match first but does not hide similar items", async () => {
+    embedMock.mockRejectedValue(new Error("no"));
+    const h = await hybridSearch({ ...base, nsn: ["3110-01-111-1111"], keywords: ["bushing"] });
+    expect(h[0].nsn).toBe("3110-01-111-1111");
+    expect(h[0].reasons).toContain("exact NSN");
+    expect(h.map((x) => x.nsn)).toContain("3120-01-333-3333");
+  });
+  it("chat: a partial NSN alone matches by prefix", async () => {
+    const h = await hybridSearch({ ...base, nsn: ["3110-01-111"] });
+    expect(h.map((x) => x.nsn)).toEqual(["3110-01-111-1111"]);
+  });
 });
