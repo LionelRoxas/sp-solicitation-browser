@@ -51,6 +51,35 @@ DLA posts about 2,000 RFQs on DIBBS every weekday. A vendor only cares about a f
   - cards with clipped corners and an RFQ-queue look.
   - **ui-sdk:** none, for time. Tabs and sort use native elements; this would be the first follow-up.
 
+## Security risks identified and accepted for this scope
+The LLM is the riskiest piece, so its job is kept narrow. It only turns words into a search intent, and it never writes data, runs SQL or picks results. Even so, these risks were found and consciously accepted for a 50-minute prototype on public data:
+- **Prompt injection.** The user, or a crafted RFQ item name if those ever enter the prompt, could steer the model.
+  - Mitigation in place: the output must pass a zod schema (FSC is 4 digits, capped arrays) and only feeds parameterized SQL. The worst case is a bad search, not a data change.
+  - Accepted: no injection classifier and no output moderation.
+- **Cost abuse and denial of wallet.** An open, unauthenticated chat endpoint lets anyone burn Groq and OpenAI quota.
+  - Mitigation in place: message length is capped at 500, and intents and embeddings are cached.
+  - Accepted: no auth, rate limit or spend cap. These would be the first production change.
+- **Data leakage.** Chat text goes to Groq and query text to OpenAI.
+  - Accepted, because DIBBS data is public and the prototype stores no vendor secrets. Real vendor profiles would need a data agreement or a self-hosted model.
+- **Hallucinated filters.** The model may invent an FSC or NSN and silently hide good RFQs.
+  - Mitigation in place: the parsed intent is shown as chips under every reply so the vendor can see and correct it, and invalid codes are dropped.
+  - Accepted: no check of FSCs against the official code list.
+- **Session memory.** Sessions are keyed by a client UUID with no auth, so anyone holding the id can read that history.
+  - Accepted, because history is only search phrases.
+- **Scraper.** It accepts the DoD consent banner as an automated client and is rate-limited to about 3 requests a second.
+  - Accepted for a demo. Production would use DLA's bulk files or a terms-of-use check.
+
+## Build process
+- One combined approval gate, then five tasks, each run by a fresh AI subagent from a written brief:
+  1. Scraper and DB
+  2. Hybrid search
+  3. Chat API
+  4. UI
+  5. README
+- Tasks run one at a time, because they build on each other's interfaces. Each one gets a separate reviewer subagent before the next starts.
+- Cheaper models handle the mechanical tasks and a stronger model the UI.
+- Progress is tracked in a ledger, so the work survives context loss.
+
 ## Plan (subagent-driven, one implementer at a time, a review after each)
 1. **Scraper and DB:** schema, Playwright scraper with paging, live run for the latest 2 days, and a test that parses a saved HTML page. Model: Sonnet.
 2. **Hybrid search lib:** FTS5 plus embeddings plus RRF, filters, an embed script, and unit tests with fake vectors. Model: Sonnet.
