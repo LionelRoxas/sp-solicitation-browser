@@ -19,7 +19,16 @@ export async function POST(req: Request) {
   try {
     const history = getSession(body.sessionId);
     const { intent, reply, source } = await parseIntent(history, body.message);
-    const results = await hybridSearch(intent, { limit: 40 });
+    // One card per solicitation + NSN: DIBBS lists a solicitation once per purchase request.
+    const seen = new Set<string>();
+    const results = (await hybridSearch(intent, { limit: 80 }))
+      .filter((h) => {
+        const k = `${h.sol_number}|${h.nsn}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .slice(0, 40);
     appendTurns(body.sessionId, [
       { role: "user", content: body.message },
       { role: "assistant", content: reply, intent },

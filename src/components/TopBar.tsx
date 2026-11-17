@@ -42,7 +42,10 @@ export function TopBar({ tab, onTab, meta }: { tab: Tab; onTab: (t: Tab) => void
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-8 gap-y-3 px-4 pt-6 pb-0 sm:px-8">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="" width={28} height={28} />
+          <picture>
+            <source srcSet="/logo-white.svg" media="(prefers-color-scheme: dark)" />
+            <img src="/logo.svg" alt="" width={28} height={28} />
+          </picture>
           <span className="heading text-[20px]">SalesPatriot</span>
           <span className="label hidden sm:inline">Solicitation browser</span>
         </div>
