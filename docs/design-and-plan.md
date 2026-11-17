@@ -21,7 +21,7 @@ DLA posts about 2,000 RFQs on DIBBS every weekday. A vendor only cares about a f
 2. **Browse:** a dense table with a search box and sort controls. Every row links to DIBBS.
 
 ## The AI's role (advisory only)
-- **Groq (Llama)** turns each chat message plus the session history into a search intent: keywords, a semantic phrase, NSN or FSC prefixes, due within N days, and a minimum quantity. The output is validated with zod. If the call fails or returns invalid output, the raw text is used as the query.
+- **Groq (`openai/gpt-oss-120b`)** turns each chat message plus the session history into a search intent: keywords, a semantic phrase, NSN or FSC prefixes, due within N days, and a minimum quantity. The output is validated with zod. If the call fails or returns invalid output, the raw text is used as the query.
 - **Ranking stays deterministic:** a hybrid search with SQLite FTS5 (BM25) for keywords and OpenAI `text-embedding-3-small` cosine for meaning, merged with reciprocal rank fusion. Hard filters cover NSN/FSC, due date and quantity.
   - NSN is the exact-digits path: the first 4 digits are the Federal Supply Class (5310 = nuts and washers, 3110 = bearings).
 - **Caching:** chat history per session in SQLite (context memory), intents cached by session plus message hash, and embeddings cached by text hash so repeat queries cost nothing.

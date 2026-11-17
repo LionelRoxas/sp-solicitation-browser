@@ -20,7 +20,7 @@ The scraper needs Google Chrome installed, or set `CHROME_PATH`. It needs Node 2
 
 - **Find:** chat with a results sidebar.
   - A vendor writes, for example, "we stock ball bearings and hex cap screws, due in the next 2 weeks". Follow-ups like "also gaskets" or "drop textiles" refine the same search, because the session remembers the conversation.
-  - **The LLM only translates.** Groq (Llama 3.3 70B) turns the message and the history into a search intent: keywords, a semantic phrase, Federal Supply Classes, NSNs, a due window and quantity bounds. zod validates it. If the model fails, the raw text becomes a keyword search.
+  - **The LLM only translates.** Groq (`openai/gpt-oss-120b`) turns the message and the history into a search intent: keywords, a semantic phrase, Federal Supply Classes, NSNs, a due window and quantity bounds. zod validates it. If the model fails, the raw text becomes a keyword search.
   - **Ranking is deterministic:**
     - keyword search with SQLite FTS5 (BM25) over the item name, NSN and solicitation number;
     - semantic search with OpenAI `text-embedding-3-small` cosine similarity;
