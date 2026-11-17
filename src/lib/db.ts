@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -20,14 +20,14 @@ export type Rfq = {
   scraped_at: string | null;
 };
 
-let db: Database.Database | null = null;
+let db: DatabaseSync | null = null;
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (db) return db;
   const file = path.resolve(process.env.DB_PATH ?? "data/dibbs.db");
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  db = new Database(file);
-  db.pragma("journal_mode = WAL");
+  db = new DatabaseSync(file);
+  db.exec("PRAGMA journal_mode = WAL");
   migrate();
   return db;
 }
@@ -85,8 +85,8 @@ export function upsertRfqs(rows: Rfq[]): number {
   const stmt = d.prepare(`
     INSERT INTO rfqs (id, sol_number, nsn, fsc, nomenclature, tech_docs, status, pr_number, qty,
       issued, return_by, detail_url, pdf_url, nsn_url, scraped_at)
-    VALUES (@id, @sol_number, @nsn, @fsc, @nomenclature, @tech_docs, @status, @pr_number, @qty,
-      @issued, @return_by, @detail_url, @pdf_url, @nsn_url, @scraped_at)
+    VALUES (:id, :sol_number, :nsn, :fsc, :nomenclature, :tech_docs, :status, :pr_number, :qty,
+      :issued, :return_by, :detail_url, :pdf_url, :nsn_url, :scraped_at)
     ON CONFLICT(id) DO UPDATE SET
       sol_number=excluded.sol_number, nsn=excluded.nsn, fsc=excluded.fsc,
       nomenclature=excluded.nomenclature, tech_docs=excluded.tech_docs, status=excluded.status,
@@ -94,8 +94,13 @@ export function upsertRfqs(rows: Rfq[]): number {
       return_by=excluded.return_by, detail_url=excluded.detail_url, pdf_url=excluded.pdf_url,
       nsn_url=excluded.nsn_url, scraped_at=excluded.scraped_at
   `);
-  d.transaction((rs: Rfq[]) => {
-    for (const r of rs) stmt.run(r);
-  })(rows);
+  d.exec("BEGIN");
+  try {
+    for (const r of rows) stmt.run({ ...r });
+    d.exec("COMMIT");
+  } catch (e) {
+    d.exec("ROLLBACK");
+    throw e;
+  }
   return rows.length;
 }

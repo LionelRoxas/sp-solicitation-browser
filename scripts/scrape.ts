@@ -16,7 +16,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function acceptConsent(page: Page) {
   if (page.url().toLowerCase().includes("dodwarning")) {
     console.log("DoD consent page; clicking #butAgree");
-    await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.click("#butAgree")]);
+    await page.click("#butAgree");
+    await page.waitForURL((u) => !u.href.toLowerCase().includes("dodwarning"));
+    await page.waitForLoadState("load");
   }
 }
 
