@@ -13,6 +13,11 @@ export type Intent = {
 export type Hit = Rfq & { score: number; reasons: string[] };
 
 const digits = (s: string) => s.replace(/\D/g, "");
+
+/** Cosine similarity at or above this counts as a meaning match (measured: ~260–410 of 4,746 rows per query; 0.25 let in over half the table). */
+export const SIMILAR_MIN = 0.35;
+/** Safety ceiling for one search's SQL, not a product cap: results are paged in the UI. */
+const MAX_MATCHES = 1000;
 const words = (s: string) => s.match(/[A-Za-z0-9]+/g) ?? [];
 
 /** Build a safe FTS5 MATCH expression, or null if nothing searchable. */
@@ -74,7 +79,8 @@ export async function hybridSearch(
   opts: { limit?: number; today?: string } = {},
 ): Promise<Hit[]> {
   const db = getDb();
-  const limit = opts.limit ?? 50;
+  // No product cap: callers page through every match. MAX_MATCHES only guards the SQL.
+  const limit = Math.min(opts.limit ?? MAX_MATCHES, MAX_MATCHES);
   const today = opts.today ?? new Date().toISOString().slice(0, 10);
   // NSNs are not a WHERE filter for the search legs: a named NSN is pinned to the top,
   // and keyword/meaning search still runs, so "this NSN or anything similar" works.
@@ -126,9 +132,9 @@ export async function hybridSearch(
     const rows = db
       .prepare(
         `SELECT r.* FROM rfqs_fts JOIN rfqs r ON r.rowid = rfqs_fts.rowid
-         WHERE rfqs_fts MATCH ?${w.sql} ORDER BY bm25(rfqs_fts) LIMIT 200`,
+         WHERE rfqs_fts MATCH ?${w.sql} ORDER BY bm25(rfqs_fts) LIMIT ?`,
       )
-      .all(q, ...w.params) as Rfq[];
+      .all(q, ...w.params, limit) as Rfq[];
     rows.forEach((r, i) => {
       byId.set(r.id, r);
       score.set(r.id, (score.get(r.id) ?? 0) + 1 / (K + i + 1));
@@ -145,9 +151,9 @@ export async function hybridSearch(
           .all(...w.params) as (Rfq & { vec: Uint8Array })[];
         const scored = rows
           .map((r) => ({ r, c: cosine(qv, fromBlob(r.vec)) }))
-          .filter((x) => x.c >= 0.25)
+          .filter((x) => x.c >= SIMILAR_MIN)
           .sort((a, b) => b.c - a.c)
-          .slice(0, 200);
+          .slice(0, limit);
         scored.forEach(({ r, c }, i) => {
           const rfq: Partial<Rfq & { vec: Uint8Array }> = { ...r };
           delete rfq.vec;
@@ -164,7 +170,7 @@ export async function hybridSearch(
   const pinnedIds = new Set(pinned.map((r) => r.id));
   const hits = [...byId.values()]
     .filter((r) => !pinnedIds.has(r.id))
-    .map((r) => decorate(r, (semHit.get(r.id) ?? 0) >= 0.35 ? ["similar meaning"] : [], score.get(r.id) ?? 0));
+    .map((r) => decorate(r, (semHit.get(r.id) ?? 0) >= SIMILAR_MIN ? ["similar meaning"] : [], score.get(r.id) ?? 0));
   hits.sort((a, b) => b.score - a.score);
   return [...pinnedHits, ...hits].slice(0, limit);
 }

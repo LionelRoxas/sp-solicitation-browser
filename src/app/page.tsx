@@ -8,10 +8,23 @@ import { ResultCard } from "@/components/ResultCard";
 import { BrowseTable } from "@/components/BrowseTable";
 import { MOCK, mockRfqs } from "@/components/mock";
 
+const MATCHES_PER_PAGE = 20;
+
 export default function Home() {
   const [tab, setTab] = useState<Tab>("find");
   const [meta, setMeta] = useState<RfqMeta | null>(null);
-  const [results, setResults] = useState<ChatResponse | null>(null);
+  const [results, setResultsRaw] = useState<ChatResponse | null>(null);
+  const [page, setPage] = useState(1);
+  const setResults = useCallback((r: ChatResponse | null) => {
+    setResultsRaw(r);
+    setPage(1);
+  }, []);
+  const goPage = (p: number) => {
+    setPage(p);
+    document.getElementById("matches")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
+  const pages = results ? Math.max(1, Math.ceil(results.results.length / MATCHES_PER_PAGE)) : 1;
+  const pageHits = results ? results.results.slice((page - 1) * MATCHES_PER_PAGE, page * MATCHES_PER_PAGE) : [];
 
   // Load data freshness for the top bar once.
   useEffect(() => {
@@ -35,7 +48,7 @@ export default function Home() {
         <div id="panel-find" role="tabpanel" aria-labelledby="tab-find" hidden={tab !== "find"}>
           <div className="grid gap-6 min-[900px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <ChatPanel onResults={setResults} />
-            <section aria-label="Matches">
+            <section id="matches" aria-label="Matches" className="scroll-mt-4">
               <p className="label mb-3" aria-live="polite">
                 Matches · {results ? results.total.toLocaleString("en-US") : 0}
               </p>
@@ -55,11 +68,29 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  {results.results.map((h) => (
-                    <ResultCard key={h.id} hit={h} />
-                  ))}
-                </div>
+                <>
+                  <div className="flex flex-col gap-3">
+                    {pageHits.map((h) => (
+                      <ResultCard key={h.id} hit={h} />
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="label" aria-live="polite">
+                      {`Page ${page} of ${pages} · ${(page - 1) * MATCHES_PER_PAGE + 1}–${Math.min(
+                        page * MATCHES_PER_PAGE,
+                        results.results.length,
+                      )} of ${results.results.length.toLocaleString("en-US")}`}
+                    </p>
+                    <div className="flex gap-2">
+                      <button type="button" className="btn" disabled={page <= 1} onClick={() => goPage(page - 1)}>
+                        Prev
+                      </button>
+                      <button type="button" className="btn" disabled={page >= pages} onClick={() => goPage(page + 1)}>
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </section>
           </div>
